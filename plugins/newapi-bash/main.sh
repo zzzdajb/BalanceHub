@@ -25,12 +25,15 @@ USER_ID=$(echo "$BALANCEHUB_CONFIG" | sed -n 's/.*"user_id"[[:space:]]*:[[:space
 [ -z "$BASE_URL" ] && { echo "错误: 配置中缺少 base_url" >&2; exit 1; }
 
 # ---- 2. 调用 NewAPI 用户信息接口 ----
+# 同时发送多个兼容性 user-id header，适配各种 One-API fork
 RESPONSE=$(curl -s --request GET \
-    "${BASE_URL}/api/user/" \
+    "${BASE_URL}/api/user/self" \
     --header "Authorization: Bearer ${API_KEY}" \
     --header "New-Api-User: ${USER_ID}" \
+    --header "User-id: ${USER_ID}" \
+    --header "neo-api-user: ${USER_ID}" \
     --header "Content-Type: application/json") || {
-    echo "错误: NewAPI 请求失败 (${BASE_URL}/api/user/)" >&2
+    echo "错误: NewAPI 请求失败 (${BASE_URL}/api/user/self)" >&2
     exit 1
 }
 
@@ -42,15 +45,22 @@ echo "$RESPONSE" | grep -q '"success"[[:space:]]*:[[:space:]]*true' || {
     exit 1
 }
 
-QUOTA=$(echo "$RESPONSE" | sed -n 's/.*"quota"[[:space:]]*:[[:space:]]*\([0-9]*\).*/\1/p' | head -1)
-API_USER_ID=$(echo "$RESPONSE" | sed -n 's/.*"id"[[:space:]]*:[[:space:]]*\([0-9]*\).*/\1/p' | head -1)
-[ -z "$API_USER_ID" ] && API_USER_ID="$USER_ID"
+# 提取 raw quota（含负号），0 兜底
+RAW_QUOTA=$(echo "$RESPONSE" | sed -n 's/.*"quota"[[:space:]]*:[[:space:]]*\(-\{0,1\}[0-9]*\).*/\1/p' | head -1)
+[ -z "$RAW_QUOTA" ] && RAW_QUOTA="0"
+QUOTA=$RAW_QUOTA
 
-# 纯整数运算：quota * 100 / 500000，再拆成整数+两位小数
-VAL=$(( QUOTA * 100 / 500000 ))
+# 纯整数运算：quota * 100 / 500000，支持负数
+SIGN=1
+[ "${QUOTA:0:1}" = "-" ] && { SIGN=-1; QUOTA="${QUOTA:1}"; }
+VAL=$(( SIGN * QUOTA * 100 / 500000 ))
 INT_PART=$(( VAL / 100 ))
 DEC_PART=$(( VAL % 100 ))
+[ $DEC_PART -lt 0 ] && DEC_PART=$(( -DEC_PART ))
 printf -v DEC_FMT "%02d" "$DEC_PART"
+
+API_USER_ID=$(echo "$RESPONSE" | sed -n 's/.*"id"[[:space:]]*:[[:space:]]*\([0-9]*\).*/\1/p' | head -1)
+[ -z "$API_USER_ID" ] && API_USER_ID="$USER_ID"
 
 # ---- 4. 输出标准 JSON 数组（纯 bash echo）----
 cat <<EOF
