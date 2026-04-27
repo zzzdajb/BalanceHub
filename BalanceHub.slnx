@@ -1,0 +1,11 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/BalanceHub.Cli/BalanceHub.Cli.csproj" />
+    <Project Path="src/BalanceHub.Core/BalanceHub.Core.csproj" />
+    <Project Path="src/BalanceHub.Providers/BalanceHub.Providers.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/BalanceHub.Cli.Tests/BalanceHub.Cli.Tests.csproj" />
+    <Project Path="tests/BalanceHub.Core.Tests/BalanceHub.Core.Tests.csproj" />
+  </Folder>
+</Solution>

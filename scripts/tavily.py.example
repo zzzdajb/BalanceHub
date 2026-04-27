@@ -1,0 +1,105 @@
+#!/usr/bin/env python3
+"""
+Tavily 配额查询脚本 — BalanceHub 插件示例 (Python 版)
+
+安装:
+  1. pip install requests
+  2. 将此脚本放到某个目录（例如 ./scripts/tavily.py）
+  3. 给予执行权限: chmod +x scripts/tavily.py
+  4. 在 balancehub.toml 中配置:
+       [providers.tavily]
+       enabled = true
+       type = "tavily"
+       script = "./scripts/tavily.py"
+       api_key_env = "TAVILY_API_KEY"
+  5. 设置环境变量: export TAVILY_API_KEY="sk-..."
+
+合约:
+  - 输入: BALANCEHUB_CONFIG 环境变量（JSON，包含 provider 配置）
+  - 输出: stdout 输出符合 ProviderRecord 格式的 JSON 数组
+  - 退出码: 0 成功, 非 0 失败
+"""
+
+import json
+import os
+import sys
+from urllib.request import Request, urlopen
+from urllib.error import URLError
+
+
+def main():
+    # 1. 读取配置
+    config_raw = os.environ.get("BALANCEHUB_CONFIG")
+    if not config_raw:
+        print("错误: BALANCEHUB_CONFIG 环境变量未设置", file=sys.stderr)
+        sys.exit(1)
+
+    config = json.loads(config_raw)
+
+    api_key_env = config.get("api_key_env")
+    if not api_key_env:
+        print("错误: 配置中缺少 api_key_env", file=sys.stderr)
+        sys.exit(1)
+
+    api_key = os.environ.get(api_key_env)
+    if not api_key:
+        print(f"错误: 环境变量 {api_key_env} 未设置", file=sys.stderr)
+        sys.exit(1)
+
+    # 2. 调用 Tavily API
+    req = Request(
+        "https://api.tavily.com/usage",
+        headers={"Authorization": f"Bearer {api_key}"},
+    )
+
+    try:
+        with urlopen(req, timeout=15) as resp:
+            data = json.loads(resp.read().decode())
+    except URLError as e:
+        print(f"错误: API 请求失败: {e}", file=sys.stderr)
+        sys.exit(1)
+    except json.JSONDecodeError as e:
+        print(f"错误: JSON 解析失败: {e}", file=sys.stderr)
+        sys.exit(1)
+
+    # 3. 转换为标准 ProviderRecord 格式
+    records = []
+
+    key_data = data.get("key", {})
+    if key_data:
+        records.append({
+            "provider": "tavily",
+            "resource": "key",
+            "type": "quota_basic",
+            "limit": key_data.get("limit"),
+            "usage": key_data.get("usage"),
+            "unit": "requests",
+        })
+
+    account = data.get("account", {})
+    if account:
+        if account.get("plan_limit"):
+            records.append({
+                "provider": "tavily",
+                "resource": "account_plan",
+                "type": "quota_basic",
+                "limit": account.get("plan_limit"),
+                "usage": account.get("plan_usage"),
+                "unit": "requests",
+            })
+        if account.get("paygo_limit"):
+            records.append({
+                "provider": "tavily",
+                "resource": "paygo",
+                "type": "quota_basic",
+                "limit": account.get("paygo_limit"),
+                "usage": account.get("paygo_usage"),
+                "unit": "requests",
+            })
+
+    # 4. 输出 JSON —— BalanceHub 将从 stdout 读取
+    json.dump(records, sys.stdout, indent=2)
+
+
+if __name__ == "__main__":
+    main()

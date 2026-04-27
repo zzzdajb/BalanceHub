@@ -1,0 +1,60 @@
+# BalanceHub 配置文件示例
+# 复制此文件为 balancehub.toml 并根据需要修改
+
+[cache]
+enabled = true
+ttl_seconds = 300
+directory = ".balancehub/cache"
+
+# ============================================================
+# 内置 provider: mock（用于开发和测试）
+# ============================================================
+[providers.mock]
+enabled = true
+type = "mock"
+
+# 可以在此处自定义 mock provider 的返回数据
+# quota_limit = 2000
+# quota_usage = 300
+# balance = 10.0
+
+# ============================================================
+# 外部脚本 provider 示例（通过执行脚本获取数据）
+#
+# 任何人都可以用自己熟悉的语言编写 provider 脚本，
+# 只需要将脚本路径配置在 script 字段中。
+#
+# 合约:
+#   输入 — BALANCEHUB_CONFIG 环境变量（JSON，包含本节的配置）
+#   输出 — stdout 输出 ProviderRecord JSON 数组
+#   退出码 — 0 成功，非 0 失败
+# ============================================================
+
+# Tavily 配额查询（Bash 版）
+# 需要: chmod +x scripts/tavily.sh
+# 需要: export TAVILY_API_KEY="sk-..."
+#
+# [providers.tavily]
+# enabled = true
+# type = "tavily"
+# script = "./scripts/tavily.sh"
+# api_key_env = "TAVILY_API_KEY"
+
+# Tavily 配额查询（Python 版）
+# 需要: pip install requests 或 使用 urllib（无需第三方库）
+# 需要: chmod +x scripts/tavily.py
+# 需要: export TAVILY_API_KEY="sk-..."
+#
+# [providers.tavily]
+# enabled = true
+# type = "tavily"
+# script = "./scripts/tavily.py"
+# api_key_env = "TAVILY_API_KEY"
+
+# 其他外部脚本 provider 示例:
+#
+# [providers.perplexity]
+# enabled = true
+# type = "perplexity"
+# script = "./scripts/perplexity.sh"
+# cookie_file = "./secrets/perplexity.cookie"
