@@ -32,24 +32,22 @@ type = "mock"
 
 # Tavily 配额查询（Bash 版）
 # 需要: chmod +x scripts/tavily.sh
-# 需要: export TAVILY_API_KEY="sk-..."
 #
 # [providers.tavily]
 # enabled = true
 # type = "tavily"
 # script = "./scripts/tavily.sh"
-# api_key_env = "TAVILY_API_KEY"
+# api_key = "sk-tavily-xxxxx"
 
 # Tavily 配额查询（Python 版）
 # 需要: pip install requests 或 使用 urllib（无需第三方库）
 # 需要: chmod +x scripts/tavily.py
-# 需要: export TAVILY_API_KEY="sk-..."
 #
 # [providers.tavily]
 # enabled = true
 # type = "tavily"
 # script = "./scripts/tavily.py"
-# api_key_env = "TAVILY_API_KEY"
+# api_key = "sk-tavily-xxxxx"
 
 # 其他外部脚本 provider 示例:
 #

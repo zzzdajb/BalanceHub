@@ -7,15 +7,13 @@
 # 获取配额数据，然后将结果以 JSON 格式输出到 stdout。
 #
 # 安装:
-#   1. 将此脚本放到某个目录（例如 ./scripts/tavily.sh）
-#   2. 给予执行权限: chmod +x scripts/tavily.sh
-#   3. 在 balancehub.toml 中配置:
+#   1. 给予执行权限: chmod +x scripts/tavily.sh
+#   2. 在 balancehub.toml 中配置:
 #        [providers.tavily]
 #        enabled = true
 #        type = "tavily"
 #        script = "./scripts/tavily.sh"
-#        api_key_env = "TAVILY_API_KEY"
-#   4. 设置环境变量: export TAVILY_API_KEY="sk-..."
+#        api_key = "sk-tavily-xxxxx"
 #
 # 工作原理:
 #   BalanceHub 会:
@@ -27,68 +25,34 @@
 # ============================================================
 set -euo pipefail
 
-# ---- 1. 从 BALANCEHUB_CONFIG 读取配置 ----
+# ---- 1. 从 BALANCEHUB_CONFIG 读取 API 密钥 ----
 # BALANCEHUB_CONFIG 是一个 JSON 字符串，包含 TOML 中该 provider 节的所有字段
-# 例如: {"enabled":true,"type":"tavily","script":"./scripts/tavily.sh","api_key_env":"TAVILY_API_KEY"}
+# 例如: {"enabled":true,"type":"tavily","script":"./scripts/tavily.sh","api_key":"sk-tavily-xxxxx"}
 
-# 使用 Python 解析 JSON（比 grep/cut 更可靠）
-# 如果没有 Python，也可以用 jq 或简单的 sed/grep
 if command -v python3 &>/dev/null; then
-    # 用 Python 提取 api_key_env 的值
-    API_KEY_ENV=$(echo "$BALANCEHUB_CONFIG" | python3 -c "import sys,json; print(json.load(sys.stdin).get('api_key_env',''))")
+    API_KEY=$(echo "$BALANCEHUB_CONFIG" | python3 -c "import sys,json; print(json.load(sys.stdin).get('api_key',''))")
 elif command -v jq &>/dev/null; then
-    API_KEY_ENV=$(echo "$BALANCEHUB_CONFIG" | jq -r '.api_key_env // ""')
+    API_KEY=$(echo "$BALANCEHUB_CONFIG" | jq -r '.api_key // ""')
 else
-    # 最后的回退方案
-    API_KEY_ENV=$(echo "$BALANCEHUB_CONFIG" | grep -o '"api_key_env":"[^"]*"' | cut -d'"' -f4)
+    API_KEY=$(echo "$BALANCEHUB_CONFIG" | grep -o '"api_key":"[^"]*"' | cut -d'"' -f4)
 fi
 
-if [ -z "$API_KEY_ENV" ]; then
-    echo "错误: 配置中缺少 api_key_env" >&2
-    exit 1
-fi
-
-# 通过环境变量名获取实际的 API 密钥
-API_KEY="${!API_KEY_ENV:-}"
 if [ -z "$API_KEY" ]; then
-    echo "错误: 环境变量 $API_KEY_ENV 未设置" >&2
+    echo "错误: 配置中缺少 api_key" >&2
     exit 1
 fi
 
 # ---- 2. 调用 Tavily API ----
-# API 文档参考:
-#   curl --request GET \
-#     --url https://api.tavily.com/usage \
-#     --header 'Authorization: Bearer <token>'
-#
-# 返回格式:
-#   {
-#     "key": {
-#       "usage": 150,
-#       "limit": 1000,
-#       "search_usage": 100,
-#       ...
-#     },
-#     "account": {
-#       "current_plan": "Bootstrap",
-#       "plan_usage": 500,
-#       "plan_limit": 15000,
-#       ...
-#     }
-#   }
-
 RESPONSE=$(curl -s --request GET \
     --url "https://api.tavily.com/usage" \
     --header "Authorization: Bearer $API_KEY")
 
-# 检查 curl 是否成功
 if [ $? -ne 0 ] || [ -z "$RESPONSE" ]; then
     echo "错误: Tavily API 请求失败" >&2
     exit 1
 fi
 
 # ---- 3. 解析响应并输出标准格式 ----
-# 使用 Python 解析 JSON 并输出 ProviderRecord 列表
 python3 -c "
 import json, sys
 
@@ -100,7 +64,6 @@ except json.JSONDecodeError as e:
 
 records = []
 
-# key 级别的配额
 key = data.get('key', {})
 if key:
     records.append({
@@ -112,7 +75,6 @@ if key:
         'unit': 'requests',
     })
 
-# account 级别配额
 account = data.get('account', {})
 if account:
     if account.get('plan_limit'):
@@ -134,7 +96,6 @@ if account:
             'unit': 'requests',
         })
 
-# 输出 JSON 数组 —— BalanceHub 将从 stdout 读取此数据
 json.dump(records, sys.stdout, indent=2)
 " || {
     echo "错误: 响应解析失败" >&2

@@ -11,6 +11,9 @@ balancehub.toml
 bin/
 obj/
 
+# 发布目录
+publish/
+
 # IDE 文件
 .vs/
 .vscode/

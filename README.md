@@ -115,7 +115,7 @@ enabled = true
 type = "mock"
 ```
 
-> 请勿将 API 密钥直接写入配置文件。推荐通过环境变量引用密钥。
+> API 密钥可直接写入配置文件（`balancehub.toml` 已被 .gitignore 排除，不会提交到仓库）。
 
 ## 退出码
 

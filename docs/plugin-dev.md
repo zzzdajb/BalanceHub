@@ -24,20 +24,16 @@ BalanceHub 将 TOML 配置中该 provider 节的所有键值对序列化为 JSON
 enabled = true
 type = "tavily"
 script = "./scripts/tavily.sh"
-api_key_env = "TAVILY_API_KEY"
+api_key = "sk-tavily-xxxxx"
 ```
 
 脚本收到的环境变量值：
 
 ```json
-{ "enabled": true, "type": "tavily", "script": "./scripts/tavily.sh", "api_key_env": "TAVILY_API_KEY" }
+{ "enabled": true, "type": "tavily", "script": "./scripts/tavily.sh", "api_key": "sk-tavily-xxxxx" }
 ```
 
-API 密钥通过独立的环境变量传递，不要在脚本或配置中硬编码：
-
-```bash
-export TAVILY_API_KEY="sk-..."
-```
+API 密钥直接写在 `api_key` 字段中。`balancehub.toml` 已被 .gitignore 排除，不会提交到仓库。
 
 ### 输出：stdout JSON 数组
 
@@ -107,9 +103,8 @@ export TAVILY_API_KEY="sk-..."
 set -euo pipefail
 
 # 1. 从 BALANCEHUB_CONFIG 读取配置
-API_KEY_ENV=$(echo "$BALANCEHUB_CONFIG" | python3 -c "import sys,json; print(json.load(sys.stdin).get('api_key_env',''))")
-API_KEY="${!API_KEY_ENV:-}"
-[ -z "$API_KEY" ] && { echo "错误: API 密钥未设置" >&2; exit 1; }
+API_KEY=$(echo "$BALANCEHUB_CONFIG" | python3 -c "import sys,json; print(json.load(sys.stdin).get('api_key',''))")
+[ -z "$API_KEY" ] && { echo "错误: 配置中缺少 api_key" >&2; exit 1; }
 
 # 2. 调用 API
 RESPONSE=$(curl -s --request GET --url "https://api.tavily.com/usage" --header "Authorization: Bearer $API_KEY")
@@ -133,8 +128,7 @@ json.dump(records, sys.stdout)
 ## 调试脚本
 
 ```bash
-export BALANCEHUB_CONFIG='{"api_key_env":"TAVILY_API_KEY"}'
-export TAVILY_API_KEY="sk-..."
+export BALANCEHUB_CONFIG='{"api_key":"sk-tavily-xxxxx"}'
 ./scripts/tavily.sh
 
 # 在 BalanceHub 中验证
@@ -148,6 +142,6 @@ dotnet run --project src/BalanceHub.Cli -- get tavily --pretty
 2. **路径**：`script` 相对路径基于配置文件所在目录解析
 3. **工作目录**：脚本启动时工作目录设为脚本所在目录
 4. **超时**：建议脚本自己处理超时
-5. **API 密钥**：始终通过环境变量传递
+5. **API 密钥**：直接填写在配置文件的 `api_key` 字段中（`balancehub.toml` 已被 .gitignore 排除）
 6. **错误消息**：提供有意义的错误说明
 7. **输出格式**：确保 JSON 是合法的数组格式

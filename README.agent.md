@@ -222,10 +222,10 @@ directory = ".balancehub/cache"
 [providers.tavily]
 enabled = true
 type = "tavily"
-api_key_env = "TAVILY_API_KEY"
+api_key = "sk-tavily-xxxxx"
 ```
 
-- API 密钥通过环境变量引用，不直接写在配置文件中
+- API 密钥直接写在配置文件中（`balancehub.toml` 默认已被 .gitignore 排除）
 - Cookie 文件通过 `cookie_file` 字段引用独立文件
 - 相对路径基于配置文件所在目录解析
 
