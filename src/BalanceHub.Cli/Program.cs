@@ -165,10 +165,10 @@ async Task HandleGet(string[] args)
     try
     {
         var config = ConfigLoader.Load(configPath);
-        // 解析配置文件所在目录，用于 ConvertProviderConfig 重新读取 TOML
+        // 解析配置文件完整路径，用于 ConvertProviderConfig 重新读取 TOML
+        // （该方法是 static 的，不持有 --config 信息，需要通过 ProviderOrchestrator 传入）
         var configFullPath = Path.GetFullPath(configPath ?? "./balancehub.toml");
-        var configDir = Path.GetDirectoryName(configFullPath)!;
-        var orchestrator = new ProviderOrchestrator(config, configDir);
+        var orchestrator = new ProviderOrchestrator(config, configFullPath);
 
         // 如果指定了 provider ID，验证配置中是否存在
         if (providerId != null && !config.Providers!.ContainsKey(providerId))

@@ -200,12 +200,12 @@ public class ProviderOrchestrator
 {
     private readonly BalanceHubConfig _config;
     private readonly CacheManager _cache;
-    private readonly string _configDirectory;
+    private readonly string _configFilePath;
 
-    public ProviderOrchestrator(BalanceHubConfig config, string? configDirectory = null)
+    public ProviderOrchestrator(BalanceHubConfig config, string? configFilePath = null)
     {
         _config = config;
-        _configDirectory = configDirectory ?? Directory.GetCurrentDirectory();
+        _configFilePath = configFilePath ?? Path.GetFullPath("./balancehub.toml");
         _cache = new CacheManager(
             config.Cache?.Directory ?? ".balancehub/cache",
             config.Cache?.TtlSeconds ?? 300);
@@ -348,7 +348,7 @@ public class ProviderOrchestrator
         // 通过重新解析 TOML 获取 provider 配置节的完整键值对
         // 因为强类型反序列化只提取了已知属性（如 enabled 和 type），
         // provider 特有的字段（如 api_key_env）需要从原始 TOML 中获取
-        var configPath = Path.Combine(_configDirectory, "balancehub.toml");
+        var configPath = _configFilePath;
         try
         {
             var tomlContent = File.ReadAllText(configPath);
