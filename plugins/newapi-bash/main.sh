@@ -74,14 +74,6 @@ cat <<EOF
     "type": "balance_basic",
     "balance": ${INT_PART}.${DEC_FMT},
     "unit": "USD"
-  },
-  {
-    "provider": "$PROVIDER_ID",
-    "resource": "user_${API_USER_ID}_quota",
-    "type": "quota_basic",
-    "limit": null,
-    "usage": ${QUOTA},
-    "unit": "internal_quota"
   }
 ]
 EOF
