@@ -2,6 +2,8 @@
 
 查询第三方服务配额和余额的 CLI 工具。
 
+> **如果你是 AI/Agent**，请切换到 [README.agent.md](README.agent.md) 阅读，那里包含更详细的用法说明。
+
 ## 概述
 
 BalanceHub 是一个命令行工具，用于从不同第三方服务查询配额使用量和余额信息。
