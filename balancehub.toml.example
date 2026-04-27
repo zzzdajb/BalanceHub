@@ -60,6 +60,18 @@ type = "mock"
 # plugin = "./plugins/deepseek-api-bash"
 # api_key = "sk-xxxxx"
 
+# NewAPI 余额查询（Bash 版，需要 curl）
+# 通过 /api/user/ 接口获取额度，除以 500,000 转换为 USD
+# 需要: chmod +x plugins/newapi-bash/main.sh
+#
+# [providers.newapi-bash]
+# enabled = true
+# type = "newapi"
+# plugin = "./plugins/newapi-bash"
+# api_key = "你的API访问令牌"
+# base_url = "https://newapi.example.com"
+# user_id = "1"
+#
 # 其他外部脚本 provider 示例:
 #
 # [providers.perplexity]
