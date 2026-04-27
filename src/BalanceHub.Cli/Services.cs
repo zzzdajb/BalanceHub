@@ -361,9 +361,12 @@ public class ProviderOrchestrator
                 providersTable.TryGetValue(providerId, out var providerObj) &&
                 providerObj is TomlTable providerTable)
             {
-                return providerTable.ToDictionary(
+                var dict = providerTable.ToDictionary(
                     kv => kv.Key,
                     kv => (object?)kv.Value); // 显式转换以处理可空性
+                // 注入 provider_id 让脚本能识别自己的 TOML section 名称
+                dict["provider_id"] = providerId;
+                return dict;
             }
         }
         catch

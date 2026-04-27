@@ -20,6 +20,9 @@ API_KEY=$(echo "$BALANCEHUB_CONFIG" | sed -n 's/.*"api_key"[[:space:]]*:[[:space
 BASE_URL=$(echo "$BALANCEHUB_CONFIG" | sed -n 's/.*"base_url"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | sed 's:/*$::')
 USER_ID=$(echo "$BALANCEHUB_CONFIG" | sed -n 's/.*"user_id"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p')
 [ -z "$USER_ID" ] && USER_ID="1"
+# 读取 TOML section 名称，用于区分同名 type 的多个实例
+PROVIDER_ID=$(echo "$BALANCEHUB_CONFIG" | sed -n 's/.*"provider_id"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p')
+[ -z "$PROVIDER_ID" ] && PROVIDER_ID="newapi"
 
 [ -z "$API_KEY" ] && { echo "错误: 配置中缺少 api_key" >&2; exit 1; }
 [ -z "$BASE_URL" ] && { echo "错误: 配置中缺少 base_url" >&2; exit 1; }
@@ -66,14 +69,14 @@ API_USER_ID=$(echo "$RESPONSE" | sed -n 's/.*"id"[[:space:]]*:[[:space:]]*\([0-9
 cat <<EOF
 [
   {
-    "provider": "newapi",
+    "provider": "$PROVIDER_ID",
     "resource": "user_${API_USER_ID}",
     "type": "balance_basic",
     "balance": ${INT_PART}.${DEC_FMT},
     "unit": "USD"
   },
   {
-    "provider": "newapi",
+    "provider": "$PROVIDER_ID",
     "resource": "user_${API_USER_ID}_quota",
     "type": "quota_basic",
     "limit": null,
