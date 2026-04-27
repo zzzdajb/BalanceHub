@@ -143,3 +143,10 @@ BalanceHub/
 - .NET 10 / C#
 - Tomlyn（TOML 解析）
 - xUnit（测试）
+
+## 致谢
+感谢 [Linux.do](https://linux.do/) 社区传播支持。
+
+感谢 **Claude Code** 提供的工具支持。
+
+感谢 **DeepSeek-V4-Flash** 和 **GPT5.5** 提供的模型支持。
