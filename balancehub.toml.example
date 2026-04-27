@@ -19,10 +19,11 @@ type = "mock"
 # balance = 10.0
 
 # ============================================================
-# 外部脚本 provider 示例（通过执行脚本获取数据）
+# 外部脚本插件（通过执行脚本获取数据）
 #
-# 任何人都可以用自己熟悉的语言编写 provider 脚本，
-# 只需要将脚本路径配置在 script 字段中。
+# 约定: 每个插件放在 plugins/<name>/ 目录下，
+# BalanceHub 会自动查找 main.py → main.sh → main.js 作为入口。
+# 你只需要在 plugin 字段中指定目录路径即可。
 #
 # 合约:
 #   输入 — BALANCEHUB_CONFIG 环境变量（JSON，包含本节的配置）
@@ -30,24 +31,34 @@ type = "mock"
 #   退出码 — 0 成功，非 0 失败
 # ============================================================
 
-# Tavily 配额查询（Bash 版）
-# 需要: chmod +x scripts/tavily.sh
+# Tavily 配额查询（Python 版，需要 pip install requests）
+# 需要在 plugins/tavily-python/ 目录执行:
+#   pip install -r plugins/tavily-python/requirements.txt
+#   chmod +x plugins/tavily-python/main.py
 #
-# [providers.tavily]
+# [providers.tavily-python]
 # enabled = true
 # type = "tavily"
-# script = "./scripts/tavily.sh"
+# plugin = "./plugins/tavily-python"
 # api_key = "sk-tavily-xxxxx"
 
-# Tavily 配额查询（Python 版）
-# 需要: pip install requests 或 使用 urllib（无需第三方库）
-# 需要: chmod +x scripts/tavily.py
+# Tavily 配额查询（Bash 版，需要 curl，无需额外运行时）
+# 需要: chmod +x plugins/tavily-bash/main.sh
 #
-# [providers.tavily]
+# [providers.tavily-bash]
 # enabled = true
 # type = "tavily"
-# script = "./scripts/tavily.py"
+# plugin = "./plugins/tavily-bash"
 # api_key = "sk-tavily-xxxxx"
+
+# DeepSeek 余额查询（Bash 版，需要 curl，无需额外运行时）
+# 需要: chmod +x plugins/deepseek-api-bash/main.sh
+#
+# [providers.deepseek-api-bash]
+# enabled = true
+# type = "deepseek"
+# plugin = "./plugins/deepseek-api-bash"
+# api_key = "sk-xxxxx"
 
 # 其他外部脚本 provider 示例:
 #

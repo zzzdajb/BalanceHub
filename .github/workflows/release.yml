@@ -1,0 +1,96 @@
+name: Build and Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  build:
+    name: Build ${{ matrix.rid }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        include:
+          - rid: linux-x64
+            os: ubuntu-latest
+            ext: tar.gz
+          - rid: linux-arm64
+            os: ubuntu-latest
+            ext: tar.gz
+          - rid: win-x64
+            os: windows-latest
+            ext: zip
+          - rid: win-arm64
+            os: windows-latest
+            ext: zip
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Publish ${{ matrix.rid }}
+        shell: bash
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          OUTPUT_DIR="release/balancehub-$VERSION-${{ matrix.rid }}"
+
+          dotnet publish src/BalanceHub.Cli/BalanceHub.Cli.csproj \
+            -c Release \
+            --self-contained true \
+            --runtime ${{ matrix.rid }} \
+            -p:PublishSingleFile=true \
+            -p:IncludeNativeLibrariesForSelfExtract=true \
+            -p:DebugType=embedded \
+            -p:Version="$VERSION" \
+            -o "$OUTPUT_DIR"
+
+          cp -r plugins "$OUTPUT_DIR/"
+
+      - name: Package ${{ matrix.rid }}
+        shell: bash
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          cd release
+
+          if [ "${{ matrix.ext }}" = "tar.gz" ]; then
+            tar czf "balancehub-$VERSION-${{ matrix.rid }}.tar.gz" "balancehub-$VERSION-${{ matrix.rid }}"
+          else
+            7z a -tzip "balancehub-$VERSION-${{ matrix.rid }}.zip" "balancehub-$VERSION-${{ matrix.rid }}"
+          fi
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: balancehub-${{ github.ref_name }}-${{ matrix.rid }}
+          path: release/*.${{ matrix.ext }}
+
+  release:
+    name: Create Release
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: balancehub-${{ github.ref_name }}-*
+          merge-multiple: true
+
+      - name: Generate checksums
+        run: sha256sum *.tar.gz *.zip > checksums.txt 2>/dev/null || sha256sum *.zip > checksums.txt
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            *.tar.gz
+            *.zip
+            checksums.txt
+          generate_release_notes: true

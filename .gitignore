@@ -14,6 +14,9 @@ obj/
 # 发布目录
 publish/
 
+# 构建脚本输出
+dist/
+
 # IDE 文件
 .vs/
 .vscode/

@@ -1,6 +1,9 @@
 using System.Diagnostics;
 using System.Text.Json;
 using BalanceHub.Core;
+using Newtonsoft.Json;
+using Newtonsoft.Json.Serialization;
+using JsonSubTypes;
 
 namespace BalanceHub.Providers;
 
@@ -13,7 +16,7 @@ namespace BalanceHub.Providers;
 ///
 /// 输入（通过环境变量）:
 ///   BALANCEHUB_CONFIG — provider 配置的 JSON 字符串，包含 TOML 文件中
-///                       该 provider 节的所有键值对（如 api_key_env 等）
+///                       该 provider 节的所有键值对（如 api_key 等）
 ///
 /// 输出（stdout）:
 ///   符合 ProviderRecord JSON 格式的数组（必须输出到标准输出）
@@ -22,11 +25,32 @@ namespace BalanceHub.Providers;
 ///   0  — 成功
 ///   非 0 — 失败（stderr 内容将作为错误消息上报）
 ///
-/// 示例脚本见 scripts/ 目录。
+/// 示例脚本见 plugins/ 目录。
 /// </summary>
 public class ScriptProvider : IProvider
 {
     private readonly string _scriptPath;
+    private static readonly JsonSerializerOptions _stjOptions = new()
+    {
+        PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower,
+    };
+
+    // Newtonsoft.Json 的序列化设置，用于解析脚本输出
+    private static readonly JsonSerializerSettings _jsonSettings = new()
+    {
+        ContractResolver = new DefaultContractResolver
+        {
+            NamingStrategy = new SnakeCaseNamingStrategy(),
+        },
+        Converters =
+        {
+            JsonSubTypes.JsonSubtypesConverterBuilder
+                .Of(typeof(ProviderRecord), "type")
+                .RegisterSubtype(typeof(QuotaBasicRecord), "quota_basic")
+                .RegisterSubtype(typeof(BalanceBasicRecord), "balance_basic")
+                .Build(),
+        },
+    };
 
     /// <param name="scriptPath">脚本文件的绝对路径。</param>
     /// <param name="id">Provider ID。</param>
@@ -55,10 +79,7 @@ public class ScriptProvider : IProvider
         }
 
         // 3. 序列化配置为 JSON，通过环境变量传递给脚本
-        var configJson = JsonSerializer.Serialize(config, new JsonSerializerOptions
-        {
-            PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower,
-        });
+        var configJson = System.Text.Json.JsonSerializer.Serialize(config, _stjOptions);
 
         var scriptDir = Path.GetDirectoryName(_scriptPath)!;
 
@@ -101,24 +122,17 @@ public class ScriptProvider : IProvider
                 $"脚本退出码 {process.ExitCode}: {detail.Trim()}");
         }
 
-        // 如果有 stderr 但退出码为 0，仅记录（不中断流程）
-        // stderr 可用于脚本输出调试信息而不影响 JSON 解析
-
         if (string.IsNullOrWhiteSpace(output))
             return [];
 
         // 6. 解析 stdout 的 JSON 输出
+        // 使用 Newtonsoft.Json + JsonSubtypes 反序列化，
+        // type 分派字段可以在 JSON 对象的任意位置。
         try
         {
-            var records = JsonSerializer.Deserialize<List<ProviderRecord>>(
-                output, new JsonSerializerOptions
-                {
-                    PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower,
-                });
-
-            return records ?? [];
+            return JsonConvert.DeserializeObject<List<ProviderRecord>>(output, _jsonSettings) ?? [];
         }
-        catch (JsonException ex)
+        catch (Exception ex)
         {
             throw new InvalidOperationException(
                 $"脚本输出不是有效的 JSON: {ex.Message}\n输出内容: {output.Trim()[..Math.Min(output.Length, 200)]}",

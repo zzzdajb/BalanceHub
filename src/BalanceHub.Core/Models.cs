@@ -133,9 +133,12 @@ public class CacheConfig
 /// <summary>
 /// 单个 provider 的配置节。
 /// 例如 [providers.tavily] 中的 enabled 和 type 字段。
-/// 如果 script 字段非空，表示这是一个外部脚本 provider；
-/// 否则使用内置的 C# provider 实现。
-/// 其他 provider 特有的配置项（如 api_key_env）通过 Tomlyn 的 TomlTable 索引器读取，
+///
+/// 三种执行模式（优先级从高到低）：
+///   1. plugin — 插件目录，自动查找 main.py/sh/js 作为入口
+///   2. script — 直接指向可执行脚本文件
+///   3. 都不设置 — 使用内置的 C# provider 实现
+/// 其他 provider 特有的配置项（如 api_key）通过 Tomlyn 的 TomlTable 索引器读取，
 /// 不在本类中预先定义。
 /// </summary>
 public class ProviderConfig
@@ -146,7 +149,13 @@ public class ProviderConfig
     /// <summary>Provider 类型标识，用于在 ProviderRegistry 中查找对应的实现。</summary>
     public string? Type { get; set; }
 
-    /// <summary>外部脚本路径。设置此项后，BalanceHub 会执行该脚本而非调用内置 C# provider。</summary>
+    /// <summary>
+    /// 插件目录路径。指向 plugins/&lt;name&gt; 文件夹，
+    /// BalanceHub 会自动查找 main.py → main.sh → main.js 作为入口脚本。
+    /// </summary>
+    public string? Plugin { get; set; }
+
+    /// <summary>外部脚本路径。直接指向可执行文件，精度高于 plugin。</summary>
     public string? Script { get; set; }
 }
 

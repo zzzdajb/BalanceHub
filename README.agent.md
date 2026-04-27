@@ -219,9 +219,10 @@ enabled = true
 ttl_seconds = 300
 directory = ".balancehub/cache"
 
-[providers.tavily]
+[providers.tavily-python]
 enabled = true
 type = "tavily"
+plugin = "./plugins/tavily-python"
 api_key = "sk-tavily-xxxxx"
 ```
 

@@ -61,12 +61,17 @@ public class ConfigLoader
             config.Cache.Directory = Path.GetFullPath(Path.Combine(configDir, cacheDir));
         }
 
-        // 解析所有 provider 的脚本路径：相对路径转为绝对路径
+        // 解析所有 provider 的脚本路径和插件目录：相对路径转为绝对路径
         foreach (var provider in config.Providers.Values)
         {
             if (!string.IsNullOrEmpty(provider.Script) && !Path.IsPathRooted(provider.Script))
             {
                 provider.Script = Path.GetFullPath(Path.Combine(configDir, provider.Script));
+            }
+
+            if (!string.IsNullOrEmpty(provider.Plugin) && !Path.IsPathRooted(provider.Plugin))
+            {
+                provider.Plugin = Path.GetFullPath(Path.Combine(configDir, provider.Plugin));
             }
         }
 
@@ -237,15 +242,16 @@ public class ProviderOrchestrator
             }
 
             // 步骤 2：获取对应 IProvider 实现
-            // 优先使用外部脚本（如果配置了 script 字段）
+            // 优先级: plugin 目录 → script 文件 → 内置 C# provider
             IProvider? provider;
-            if (!string.IsNullOrEmpty(config.Script))
+            var scriptPath = ResolvePluginEntry(config.Plugin) ?? config.Script;
+            if (!string.IsNullOrEmpty(scriptPath))
             {
-                provider = new ScriptProvider(config.Script, id);
+                provider = new ScriptProvider(scriptPath, id);
             }
             else
             {
-                // 否则从内置注册表中查找
+                // 从内置注册表中查找
                 var providerType = config.Type ?? id;
                 provider = ProviderRegistry.GetProvider(providerType);
             }
@@ -399,14 +405,16 @@ public class ProviderOrchestrator
         foreach (var (id, config) in _config.Providers!)
         {
             var providerType = config.Type ?? id;
-            var hasImpl = ProviderRegistry.GetProvider(providerType) != null;
+            var entry = ResolvePluginEntry(config.Plugin) ?? config.Script;
+            var hasExternal = !string.IsNullOrEmpty(entry) && File.Exists(entry);
+            var hasBuiltIn = ProviderRegistry.GetProvider(providerType) != null;
 
             summaries.Add(new
             {
                 id,
                 type = providerType,
                 enabled = config.Enabled,
-                has_implementation = hasImpl,
+                has_implementation = hasExternal || hasBuiltIn,
             });
         }
         return summaries;
@@ -433,20 +441,44 @@ public class ProviderOrchestrator
         {
             if (!config.Enabled) continue;
 
-            var providerType = config.Type ?? id;
-            var provider = ProviderRegistry.GetProvider(providerType);
+            // 检查 provider 是否就绪：外部脚本/插件 或 内置 C# 实现
+            var entry = ResolvePluginEntry(config.Plugin) ?? config.Script;
+            var hasExternal = !string.IsNullOrEmpty(entry) && File.Exists(entry);
+            var hasBuiltIn = ProviderRegistry.GetProvider(config.Type ?? id) != null;
 
-            results.Add(new
-            {
-                check = $"provider:{id}",
-                status = provider != null ? "ok" : "error",
-                message = provider != null
-                    ? $"Provider '{id}' (类型: {providerType}) 已就绪"
-                    : $"未找到 provider 实现，类型: {providerType}",
-            });
+            var status = hasExternal || hasBuiltIn ? "ok" : "error";
+            var msg = hasExternal
+                ? $"Provider '{id}' (插件: {entry}) 已就绪"
+                : hasBuiltIn
+                    ? $"Provider '{id}' (类型: {config.Type ?? id}) 已就绪"
+                    : $"未找到 provider 实现，类型: {config.Type ?? id}";
+
+            results.Add(new { check = $"provider:{id}", status, message = msg });
         }
 
         return results;
+    }
+
+    /// <summary>
+    /// 解析插件目录的入口脚本。
+    /// 按优先级查找: main.py → main.sh → main.js
+    /// </summary>
+    /// <param name="pluginDir">插件目录路径，为 null 或空时直接返回 null。</param>
+    /// <returns>找到的入口脚本完整路径，未找到时返回 null。</returns>
+    private static string? ResolvePluginEntry(string? pluginDir)
+    {
+        if (string.IsNullOrEmpty(pluginDir) || !Directory.Exists(pluginDir))
+            return null;
+
+        var candidates = new[] { "main.py", "main.sh", "main.js" };
+        foreach (var name in candidates)
+        {
+            var path = Path.Combine(pluginDir, name);
+            if (File.Exists(path))
+                return Path.GetFullPath(path);
+        }
+
+        return null;
     }
 }
 
